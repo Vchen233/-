@@ -1,0 +1,28 @@
+# IDE files
+.idea/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Virtual environment
+venv/
+env/
+
+# Output files
+output/*.jpg
+!output/.gitkeep
+
+# Local development settings
+*.env
+.env
+
+# System files
+.DS_Store
+Thumbs.db
