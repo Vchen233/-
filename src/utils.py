@@ -52,12 +52,13 @@ def add_white_background(image, padding=20):
     background[padding:padding+h, padding:padding+w] = image
     return background
 
-def resize_to_square(image, size):
+def resize_to_square(image, size, keep_aspect_ratio=True):
     """将图片调整为正方形
     
     Args:
         image (numpy.ndarray): 输入图片
         size (int): 目标尺寸
+        keep_aspect_ratio (bool): 是否保持宽高比
         
     Returns:
         numpy.ndarray: 调整后的图片
@@ -66,47 +67,59 @@ def resize_to_square(image, size):
     if h == w:
         return cv2.resize(image, (size, size))
     
-    # 创建白色背景
-    background = np.ones((size, size, 3), dtype=np.uint8) * 255
-    
-    # 计算缩放比例
-    scale = size / max(h, w)
-    new_h, new_w = int(h * scale), int(w * scale)
-    
-    # 缩放图片
-    resized = cv2.resize(image, (new_w, new_h))
-    
-    # 计算居中位置
-    y_offset = (size - new_h) // 2
-    x_offset = (size - new_w) // 2
-    
-    # 将图片放在白色背景中央
-    background[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = resized
-    
-    return background
+    if keep_aspect_ratio:
+        # 创建白色背景
+        background = np.ones((size, size, 3), dtype=np.uint8) * 255
+        
+        # 计算缩放比例
+        scale = size / max(h, w)
+        new_h, new_w = int(h * scale), int(w * scale)
+        
+        # 缩放图片
+        resized = cv2.resize(image, (new_w, new_h))
+        
+        # 计算居中位置
+        y_offset = (size - new_h) // 2
+        x_offset = (size - new_w) // 2
+        
+        # 将图片放在白色背景中央
+        background[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = resized
+        return background
+    else:
+        # 直接拉伸到正方形
+        return cv2.resize(image, (size, size))
 
-def add_logo(image, logo, position='top-left', margin=10):
+def add_logo(image, logo, position='top-left', margin=0, size_ratio=0.25):
     """在图片指定位置添加logo
     
     Args:
         image (numpy.ndarray): 主图片
         logo (numpy.ndarray): logo图片
-        position (str): logo位置，默认为左上角
+        position (str): logo位置，'top-left' 或 'top-right'
         margin (int): 边距
+        size_ratio (float): logo大小比例（相对于图片宽度）
         
     Returns:
         numpy.ndarray: 添加logo后的图片
     """
-    # 调整logo大小（设为图片宽度的1/6）
-    logo_size = image.shape[1] // 6
-    logo = resize_to_square(logo, logo_size)
-    
-    # 获取logo尺寸
+    # 获取logo原始尺寸
     logo_h, logo_w = logo.shape[:2]
+    target_width = int(image.shape[1] * size_ratio)
     
-    # 计算logo位置
+    # 保持原始宽高比进行缩放
+    scale = target_width / logo_w
+    new_w = target_width
+    new_h = int(logo_h * scale)
+    
+    # 缩放logo
+    logo = cv2.resize(logo, (new_w, new_h))
+    
+    # 计算logo位置（完全贴在角落）
     if position == 'top-left':
         x = margin
+        y = margin
+    elif position == 'top-right':
+        x = image.shape[1] - new_w - margin
         y = margin
     
     # 创建logo掩码
@@ -114,10 +127,10 @@ def add_logo(image, logo, position='top-left', margin=10):
     _, mask = cv2.threshold(logo_gray, 250, 255, cv2.THRESH_BINARY_INV)
     
     # 在图片上添加logo
-    roi = image[y:y+logo_h, x:x+logo_w]
+    roi = image[y:y+new_h, x:x+new_w]
     roi_bg = cv2.bitwise_and(roi, roi, mask=cv2.bitwise_not(mask))
     roi_fg = cv2.bitwise_and(logo, logo, mask=mask)
-    image[y:y+logo_h, x:x+logo_w] = cv2.add(roi_bg, roi_fg)
+    image[y:y+new_h, x:x+new_w] = cv2.add(roi_bg, roi_fg)
     
     return image
 
